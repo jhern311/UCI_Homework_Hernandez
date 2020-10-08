@@ -7,4 +7,4 @@
 
 * Main age demographic is within the range of 20 - 24 who also buy the most in-game items.
 
-* Most purchased item is the 'Final Critic' which also the most profitable.
+* Most purchased item is the 'Final Critic' which was also the most profitable.

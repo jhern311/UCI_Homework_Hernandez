@@ -1,14 +1,19 @@
+import datetime as dt
 import numpy as np
+import pandas as pd
+
+import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
+
 from flask import Flask, jsonify
+
 
 #################################################
 # Database Setup
 #################################################
-engine = create_engine("sqlite:///Resources/hawaii.sqlite")
-
+engine = create_engine("sqlite:///hawaii.sqlite")
 
 # reflect an existing database into a new model
 Base = automap_base()
@@ -19,10 +24,14 @@ Base.prepare(engine, reflect=True)
 Measurement = Base.classes.measurement
 Station = Base.classes.station
 
+# Create our session (link) from Python to the DB
+session = Session(engine)
+
 #################################################
 # Flask Setup
 #################################################
 app = Flask(__name__)
+
 
 #################################################
 # Flask Routes
@@ -30,90 +39,58 @@ app = Flask(__name__)
 
 @app.route("/")
 def welcome():
-    """List all available api routes."""
     return (
-        f"Surfs up, BRUH!!! Check it out!!<br/>"
+        f"Welcome to the Hawaii Climate Analysis API!<br/>"
         f"Available Routes:<br/>"
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
         f"/api/v1.0/temp/start/end"
-      
     )
+
 
 @app.route("/api/v1.0/precipitation")
 def precipitation():
-    # Create our session (link) from Python to the DB
-    session = Session(engine)
+    """Return the precipitation data for the last year"""
+    # Calculate the date 1 year ago from last date in database
+    prev_year = dt.date(2017, 8, 23) - dt.timedelta(days=365)
 
-    """Return a list of all Precipitation Data"""
-    # Query all Precipitation
-    results = session.query(Measurement.date, Measurement.prcp).\
-        filter(Measurement.date >= "2016-08-24").\
-        all()
+    # Query for the date and precipitation for the last year
+    precipitation = session.query(Measurement.date, Measurement.prcp).\
+        filter(Measurement.date >= prev_year).all()
 
-    session.close()
-
-
-   
-    
-    # Convert the list to Dictionary
-    all_prcp = []
-    for date,prcp  in results:
-        prcp_dict = {}
-        prcp_dict["date"] = date
-        prcp_dict["prcp"] = prcp
-               
-        all_prcp.append(prcp_dict)
-
-    return jsonify(all_prcp)
+    # Dict with date as the key and prcp as the value
+    precip = {date: prcp for date, prcp in precipitation}
+    return jsonify(precip)
 
 
 @app.route("/api/v1.0/stations")
 def stations():
-    # Create our session (link) from Python to the DB
-    session = Session(engine)
+    """Return a list of stations."""
+    results = session.query(Station.station).all()
 
-    """Return a list of all Stations"""
-    # Query all Stations
-    results = session.query(Station.station).\
-                 order_by(Station.station).all()
+    # Unravel results into a 1D array and convert to a list
+    stations = list(np.ravel(results))
+    return jsonify(stations=stations)
 
-    session.close()
-
-    # Convert list of tuples into normal list
-    all_stations = list(np.ravel(results))
-
-    return jsonify(all_stations)
 
 @app.route("/api/v1.0/tobs")
-def tobs():
-    # Create our session (link) from Python to the DB
-    session = Session(engine)
+def temp_monthly():
+    """Return the temperature observations (tobs) for previous year."""
+    # Calculate the date 1 year ago from last date in database
+    prev_year = dt.date(2017, 8, 23) - dt.timedelta(days=365)
 
-    """Return a list of all TOBs"""
-    # Query all tobs
+    # Query the primary station for all tobs from the last year
+    results = session.query(Measurement.tobs).\
+        filter(Measurement.station == 'USC00519281').\
+        filter(Measurement.date >= prev_year).all()
 
-    results = session.query(Measurement.date,  Measurement.tobs,Measurement.prcp).\
-                filter(Measurement.date >= '2016-08-23').\
-                filter(Measurement.station=='USC00519281').\
-                order_by(Measurement.date).all()
+    # Unravel results into a 1D array and convert to a list
+    temps = list(np.ravel(results))
 
-    session.close()
+    # Return the results
+    return jsonify(temps=temps)
 
-   
-
-    # Convert the list to Dictionary
-    all_tobs = []
-    for prcp, date,tobs in results:
-        tobs_dict = {}
-        tobs_dict["prcp"] = prcp
-        tobs_dict["date"] = date
-        tobs_dict["tobs"] = tobs
-        
-        all_tobs.append(tobs_dict)
-
-    return jsonify(all_tobs)
 
 @app.route("/api/v1.0/temp/<start>")
 @app.route("/api/v1.0/temp/<start>/<end>")
@@ -139,5 +116,6 @@ def stats(start=None, end=None):
     temps = list(np.ravel(results))
     return jsonify(temps=temps)
 
-if __name__ == "__main__":
-    app.run(debug=True)
+
+if __name__ == '__main__':
+    app.run()

@@ -18,6 +18,9 @@ function colorScale(magnitude) {
                           '#1A9850';
 }
 
+
+
+
 function createFeatures(earthquakeData) {
   
   // Function for feature pop-up
@@ -98,7 +101,7 @@ function createMap(earthquakes) {
     };
   
     // Create our map, giving it the streetmap and earthquakes layers to display on load
-    var myMap = L.map("map", {
+    var myMap = L.map("mapid", {
       center: [
         37.09, -95.71
       ],
